@@ -142,64 +142,68 @@ class SharpeningFilters:
     @staticmethod
     def apply_convolution(image, kernel):
         """
-        Aplica la convolución con un kernel dado sobre una imagen.
+        Realiza la convolución de una imagen con un kernel dado.
+        - image: Imagen de entrada como una matriz NumPy.
+        - kernel: Kernel (matriz) para la convolución.
         """
+        # Obtiene las dimensiones del kernel y de la imagen.
         kernel_height, kernel_width = kernel.shape
         image_height, image_width = image.shape
 
-        # Crear una imagen de salida con ceros (del mismo tamaño que la imagen original)
+        # Crea una imagen de salida vacía del mismo tamaño que la imagen original.
         output_image = np.zeros((image_height, image_width), dtype=np.float32)
 
-        # Agregar padding a la imagen original basado en el tamaño del kernel
+        # Calcula el tamaño del padding basado en las dimensiones del kernel.
         pad_height = kernel_height // 2
         pad_width = kernel_width // 2
+
+        # Añade padding a la imagen original para manejar los bordes.
         padded_image = np.pad(image, ((pad_height, pad_height), (pad_width, pad_width)), mode='reflect')
 
-        # Realizar la operación de convolución
+        # Itera sobre cada píxel de la imagen.
         for i in range(image_height):
             for j in range(image_width):
-                # Extraer la región de interés (ROI) de la imagen
+                # Extrae la región de interés (ROI) basada en el tamaño del kernel.
                 roi = padded_image[i:i + kernel_height, j:j + kernel_width]
-                # Realizar el producto punto entre el ROI y el kernel, y asignar a la imagen de salida
+
+                # Realiza la operación de convolución: producto y suma entre el ROI y el kernel.
                 output_image[i, j] = np.sum(roi * kernel)
 
-        # Recortar los valores de la imagen para que estén entre 0 y 255 y convertir a uint8
+        # Asegura que los valores de píxeles estén en el rango 0-255 y convierte a uint8.
         output_image = np.clip(output_image, 0, 255)
         return output_image.astype(np.uint8)
 
     @staticmethod
     def apply_laplacian_filter(image):
         """
-        Aplica un filtro Laplaciano para acentuar los bordes.
+        Aplica un filtro Laplaciano a la imagen para acentuar los bordes.
+        - image: Imagen de entrada como una matriz NumPy.
         """
+        # Define el kernel Laplaciano para detectar bordes.
         kernel = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]], dtype=np.float32)
+
+        # Aplica la convolución utilizando el kernel Laplaciano.
         return SharpeningFilters.apply_convolution(image, kernel)
 
     @staticmethod
     def apply_sobel_filter(image, direction="both"):
         """
-        Aplica un filtro de Sobel para detectar bordes tanto en dirección horizontal como vertical.
+        Aplica un filtro de Sobel para detectar bordes en una dirección específica o en ambas.
+        - image: Imagen de entrada como una matriz NumPy.
+        - direction: Dirección de detección de bordes ('horizontal', 'vertical', 'both').
         """
+        # Define los kernels de Sobel para las direcciones horizontal y vertical.
         sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
         sobel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=np.float32)
 
-        grad_x = (
-            SharpeningFilters.apply_convolution(image, sobel_x)
-            if direction in ["horizontal", "both"]
-            else None
-        )
-        grad_y = (
-            SharpeningFilters.apply_convolution(image, sobel_y)
-            if direction in ["vertical", "both"]
-            else None
-        )
+        # Aplica la convolución con el kernel Sobel en la dirección especificada.
+        grad_x = SharpeningFilters.apply_convolution(image, sobel_x) if direction in ["horizontal", "both"] else None
+        grad_y = SharpeningFilters.apply_convolution(image, sobel_y) if direction in ["vertical", "both"] else None
 
         if direction == "both":
-            # Calcular la magnitud del gradiente manualmente
-            grad = np.sqrt(
-                np.square(grad_x.astype(np.float32))
-                + np.square(grad_y.astype(np.float32))
-            )
+            # Calcula la magnitud del gradiente combinando ambos gradientes (horizontal y vertical).
+            grad = np.sqrt(np.square(grad_x.astype(np.float32)) + np.square(grad_y.astype(np.float32)))
+            # Ajusta los valores a un rango válido y convierte a uint8.
             return np.clip(grad, 0, 255).astype(np.uint8)
         elif direction == "horizontal":
             return grad_x
@@ -209,27 +213,22 @@ class SharpeningFilters:
     @staticmethod
     def apply_prewitt_filter(image, direction="both"):
         """
-        Aplica un filtro de Prewitt para detectar bordes tanto en dirección horizontal como vertical.
+        Aplica un filtro de Prewitt para detectar bordes en una dirección específica o en ambas.
+        - image: Imagen de entrada como una matriz NumPy.
+        - direction: Dirección de detección de bordes ('horizontal', 'vertical', 'both').
         """
+        # Define los kernels de Prewitt para las direcciones horizontal y vertical.
         prewitt_x = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype=np.float32)
         prewitt_y = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]], dtype=np.float32)
 
-        grad_x = (
-            SharpeningFilters.apply_convolution(image, prewitt_x)
-            if direction in ["horizontal", "both"]
-            else None
-        )
-        grad_y = (
-            SharpeningFilters.apply_convolution(image, prewitt_y)
-            if direction in ["vertical", "both"]
-            else None
-        )
+        # Aplica la convolución con el kernel Prewitt en la dirección especificada.
+        grad_x = SharpeningFilters.apply_convolution(image, prewitt_x) if direction in ["horizontal", "both"] else None
+        grad_y = SharpeningFilters.apply_convolution(image, prewitt_y) if direction in ["vertical", "both"] else None
 
         if direction == "both":
-            grad = np.sqrt(
-                np.square(grad_x.astype(np.float32))
-                + np.square(grad_y.astype(np.float32))
-            )
+            # Calcula la magnitud del gradiente combinando ambos gradientes (horizontal y vertical).
+            grad = np.sqrt(np.square(grad_x.astype(np.float32)) + np.square(grad_y.astype(np.float32)))
+            # Ajusta los valores a un rango válido y convierte a uint8.
             return np.clip(grad, 0, 255).astype(np.uint8)
         elif direction == "horizontal":
             return grad_x
@@ -240,15 +239,19 @@ class SharpeningFilters:
     def apply_roberts_filter(image):
         """
         Aplica un filtro de Roberts para detectar bordes diagonalmente.
+        - image: Imagen de entrada como una matriz NumPy.
         """
+        # Define los kernels de Roberts para las dos orientaciones diagonales.
         roberts_x = np.array([[1, 0], [0, -1]], dtype=np.float32)
         roberts_y = np.array([[0, 1], [-1, 0]], dtype=np.float32)
 
+        # Aplica la convolución con los kernels de Roberts.
         grad_x = SharpeningFilters.apply_convolution(image, roberts_x)
         grad_y = SharpeningFilters.apply_convolution(image, roberts_y)
-        grad = np.sqrt(
-            np.square(grad_x.astype(np.float32)) + np.square(grad_y.astype(np.float32))
-        )
+
+        # Calcula la magnitud del gradiente combinando ambos gradientes diagonales.
+        grad = np.sqrt(np.square(grad_x.astype(np.float32)) + np.square(grad_y.astype(np.float32)))
+        # Ajusta los valores a un rango válido y convierte a uint8.
         return np.clip(grad, 0, 255).astype(np.uint8)
 
 
