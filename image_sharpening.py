@@ -130,12 +130,42 @@ class SmoothingFilters:
 
 
 class SharpeningFilters:
+    '''
     @staticmethod
     def apply_convolution(image, kernel):
         """
         Aplica la convolución con un kernel dado sobre una imagen.
         """
         return cv2.filter2D(image, -1, kernel)
+    '''
+
+    @staticmethod
+    def apply_convolution(image, kernel):
+        """
+        Aplica la convolución con un kernel dado sobre una imagen.
+        """
+        kernel_height, kernel_width = kernel.shape
+        image_height, image_width = image.shape
+
+        # Crear una imagen de salida con ceros (del mismo tamaño que la imagen original)
+        output_image = np.zeros((image_height, image_width), dtype=np.float32)
+
+        # Agregar padding a la imagen original basado en el tamaño del kernel
+        pad_height = kernel_height // 2
+        pad_width = kernel_width // 2
+        padded_image = np.pad(image, ((pad_height, pad_height), (pad_width, pad_width)), mode='reflect')
+
+        # Realizar la operación de convolución
+        for i in range(image_height):
+            for j in range(image_width):
+                # Extraer la región de interés (ROI) de la imagen
+                roi = padded_image[i:i + kernel_height, j:j + kernel_width]
+                # Realizar el producto punto entre el ROI y el kernel, y asignar a la imagen de salida
+                output_image[i, j] = np.sum(roi * kernel)
+
+        # Recortar los valores de la imagen para que estén entre 0 y 255 y convertir a uint8
+        output_image = np.clip(output_image, 0, 255)
+        return output_image.astype(np.uint8)
 
     @staticmethod
     def apply_laplacian_filter(image):
@@ -146,38 +176,65 @@ class SharpeningFilters:
         return SharpeningFilters.apply_convolution(image, kernel)
 
     @staticmethod
-    def apply_sobel_filter(image, direction='both'):
+    def apply_sobel_filter(image, direction="both"):
         """
         Aplica un filtro de Sobel para detectar bordes tanto en dirección horizontal como vertical.
         """
-        if direction not in ['horizontal', 'vertical', 'both']:
-            raise ValueError("direction debe ser 'horizontal', 'vertical' o 'both'.")
+        sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=np.float32)
+        sobel_y = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=np.float32)
 
-        grad_x = cv2.Sobel(image, cv2.CV_64F, 1, 0, ksize=3) if direction in ['horizontal', 'both'] else 0
-        grad_y = cv2.Sobel(image, cv2.CV_64F, 0, 1, ksize=3) if direction in ['vertical', 'both'] else 0
+        grad_x = (
+            SharpeningFilters.apply_convolution(image, sobel_x)
+            if direction in ["horizontal", "both"]
+            else None
+        )
+        grad_y = (
+            SharpeningFilters.apply_convolution(image, sobel_y)
+            if direction in ["vertical", "both"]
+            else None
+        )
 
-        if direction == 'both':
-            grad = cv2.magnitude(grad_x, grad_y)
-            return cv2.convertScaleAbs(grad)
+        if direction == "both":
+            # Calcular la magnitud del gradiente manualmente
+            grad = np.sqrt(
+                np.square(grad_x.astype(np.float32))
+                + np.square(grad_y.astype(np.float32))
+            )
+            return np.clip(grad, 0, 255).astype(np.uint8)
+        elif direction == "horizontal":
+            return grad_x
         else:
-            return cv2.convertScaleAbs(grad_x if direction == 'horizontal' else grad_y)
+            return grad_y
 
     @staticmethod
-    def apply_prewitt_filter(image, direction='both'):
+    def apply_prewitt_filter(image, direction="both"):
         """
         Aplica un filtro de Prewitt para detectar bordes tanto en dirección horizontal como vertical.
         """
         prewitt_x = np.array([[-1, 0, 1], [-1, 0, 1], [-1, 0, 1]], dtype=np.float32)
         prewitt_y = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]], dtype=np.float32)
 
-        grad_x = SharpeningFilters.apply_convolution(image, prewitt_x) if direction in ['horizontal', 'both'] else 0
-        grad_y = SharpeningFilters.apply_convolution(image, prewitt_y) if direction in ['vertical', 'both'] else 0
+        grad_x = (
+            SharpeningFilters.apply_convolution(image, prewitt_x)
+            if direction in ["horizontal", "both"]
+            else None
+        )
+        grad_y = (
+            SharpeningFilters.apply_convolution(image, prewitt_y)
+            if direction in ["vertical", "both"]
+            else None
+        )
 
-        if direction == 'both':
-            grad = cv2.magnitude(grad_x, grad_y)
-            return cv2.convertScaleAbs(grad)
+        if direction == "both":
+            grad = np.sqrt(
+                np.square(grad_x.astype(np.float32))
+                + np.square(grad_y.astype(np.float32))
+            )
+            return np.clip(grad, 0, 255).astype(np.uint8)
+        elif direction == "horizontal":
+            return grad_x
         else:
-            return cv2.convertScaleAbs(grad_x if direction == 'horizontal' else grad_y)
+            return grad_y
 
     @staticmethod
     def apply_roberts_filter(image):
@@ -189,9 +246,10 @@ class SharpeningFilters:
 
         grad_x = SharpeningFilters.apply_convolution(image, roberts_x)
         grad_y = SharpeningFilters.apply_convolution(image, roberts_y)
-        grad = cv2.magnitude(grad_x, grad_y)
-        return cv2.convertScaleAbs(grad)
-
+        grad = np.sqrt(
+            np.square(grad_x.astype(np.float32)) + np.square(grad_y.astype(np.float32))
+        )
+        return np.clip(grad, 0, 255).astype(np.uint8)
 
 
 # Clase principal de la aplicación de procesamiento de imágenes
@@ -243,7 +301,7 @@ class ImageProcessorApp:
         """
         # Obtener el nombre base de la imagen original
         original_name = os.path.splitext(os.path.basename(self.image_path))[0]
-        
+
         # Crear un nombre de carpeta con '_Processed' al final
         folder_name = f"{original_name}_Processed"
 
@@ -271,7 +329,9 @@ class ImageProcessorApp:
         img_noisy = cv2.add(img, noise)
 
         # Aplicar filtro de suavizado (Gaussiano en este caso)
-        img_smoothed = SmoothingFilters.apply_gaussian_filter(img_noisy, filter_size, gaussian_sigma)
+        img_smoothed = SmoothingFilters.apply_gaussian_filter(
+            img_noisy, filter_size, gaussian_sigma
+        )
 
         # Convertir la imagen a float32 para el procesamiento
         img_smoothed = img_smoothed.astype(np.float32)
