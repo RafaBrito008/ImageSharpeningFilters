@@ -1,5 +1,3 @@
-# README for Python Image Processing Application
-
 ## Overview
 This Python application provides an image processing platform built with Tkinter and OpenCV. It offers various image smoothing and sharpening filters, including Gaussian, median, Laplacian, Sobel, Prewitt, and Roberts filters. Users can load images, apply different filters, and view the results within a user-friendly interface.
 
@@ -30,6 +28,3 @@ Run the script to open the GUI. Use the "Load Image" button to choose an image f
 - `SmoothingFilters`: Static methods for applying average, median, and Gaussian filters.
 - `SharpeningFilters`: Static methods for applying convolution, Laplacian, Sobel, Prewitt, and Roberts filters.
 - `ImageProcessorApp`: Main class to handle the GUI and image processing operations.
-
-## Note
-This application is intended for educational and experimental use. Performance may vary depending on the image size and the computing resources available.
